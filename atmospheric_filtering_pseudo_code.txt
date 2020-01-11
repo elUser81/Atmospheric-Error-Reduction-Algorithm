@@ -1,0 +1,116 @@
+pseudo code for systematic error removal
+
+
+def sys_err_removal(data_table, target_name, max_range = 30, max_ensemble_size = 10,
+		     starting_range = 5.0, increase = 1)
+
+	# Param: data_table: The data from a night's observations, either from an SQL querey or a csv file.
+	# Param: target_name: A string of the star's name.
+	# Param: max_range: the maximum range of the ensemble field, default is 30 arc miniutes
+	# Param: max_ensemble_size: the maximum number of stars in the ensemble, default is 10
+	# Param: starting_range: the starting range of the ensemble field, default is 5 arc miniutes
+	# Param: increase: The amount by which the algorithm increases the range when there are not enough ensemble stars, default is 1 arc miniute	
+
+	#converting ranges and increase from arc mins to pixels:
+
+	pmax_range = max_range * 60/6.3
+	pstart_range = start_range * 60/6.3 
+	pincrease = increase * 60 / 6.3
+
+	#declaring some empty lists and other values before the while loop:
+
+	flagged = [] #a list of star that have been flagged for having high sigma, these are skipped over
+	mjs = [] # The wieghted average instrumental magnitude of the ensemble stars for each frame. (see astrokit paper section 2 paragraph 3)
+	time = [] # A list of modified julian dats to plot over
+	all_raw_mags = [] # the raw magnitudes of the star
+	M = 0 # The mean magnitude of all ensemble stars averaged over all frames. (See astrokit paper section 2 paragraph 4)
+	ensemble_size = 0 #empty value for the ensemble size as its calculated
+	
+	# In priciple, this while loop will continue calculating and increasing the range untill one of the conditions are met
+
+	while ensemble_size < max_ensemble_size and start_range < max_range:
+
+		# get_stars_in_range goes through the file and checks if stars are in range,
+		# returns any if there are in the same format as 'data_table'. The function also filters out any that are in the list 'flagged'
+		# this function could be performed beforehand with an sql querey.
+	
+		stars_in_range = get_stars_in_range(data_table, start_range, target_name, flagged)
+
+		# preprocess checks each star found in the range to ensure that it exist in all frames that the target star is in.
+		# setting 'all there' in the sql querey to 100% would cut the work for this function down substantially. 
+		# this function also returns a list called 'ensemble_sigmas' which is a list of sigmas for all emsemble stars that are 'all there'
+	
+		ensemble_stars, enesmble_sigmas = preprocess(stars_in_range, target_name)
+
+		# if the length of the list 'ensemble_sigs' is 0, no ensemble stars were found
+		# if length == 0, increases range and continues to the next iteration of the loop
+
+		if length(ensemble_sigs) == 0:
+			start_range = start_range + pincrease
+			continue
+
+		
+		# Pulling the columns from 'stars_in_range' and assigning them to columns
+		all_raw_mags, all_raw_mag_errs, time = get_vals(ensemble_stars, target_name)
+
+		# gets the mjs and the corresponding error (see astro kit paper section 2 paragraph 3 for more details)
+
+		mjs, merr_ens = get_all_mjs(ensemble_stars)
+
+		#I had to do some other formatting acrobatics with astropy, 
+		#I didn't think those would be relevant in the pseudo code
+
+		#Calculating M, declared before the while loop
+		#total number of frames is simply the length of the time list
+		
+		num_frames = length(time)
+		M = sum(mjs)/num_frames
+
+		#remove_high_sigmas removes all sigmas from 'ensemble_sigmas' over the limit of 2*M and returns them in a list 'more_flagged'
+		ensemble_sigmas, more_flagged = remove_high_sigmas(ensemble_sigmas, M)
+
+		# assigns the length of ensemble_sigmas, after flagged stars have been removed
+		ensemble_size = length(ensemble_sigmas)
+
+		#if the ensemble size is still too small, start_range is increased and the loop repeats	
+		if ensemble_size < max_ensemble_size:
+			start_range = start_range + pincrease
+			continue
+
+###breaking out of while loop ###
+
+	#calculating the corrected magnitudes 'mcor' (see astrokit paper section 2 paragraph 5 for more details)
+	mcor = [mag - (mj - M) for mag, mj in zip(all_raw_mags, mjs)]
+
+
+	
+
+
+		
+
+
+		
+
+		
+		
+		
+
+		
+		
+		
+	
+
+	
+
+
+
+
+
+
+	
+
+
+
+
+
+
